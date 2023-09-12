@@ -5,32 +5,10 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-public enum AttractieStatus
-{
-    Werkt,
-    Kapot,
-    Opstarten
-}
-
-public class Logger
-{
-    private static StreamWriter writer;
-
-    public static async Task Open()
-    {
-        writer = new StreamWriter("log.txt");
-        await writer.WriteLineAsync("Log started.");
-    }
-
-    public static async Task Write(string text)
-    {
-        await writer.WriteLineAsync(text);
-    }
-}
-
+namespace Program;
 public static class Willekeurig
 {
-    public static readonly Random Random = new Random();
+    public static Random Random = new Random();
 
     public static async Task Pauzeer(int milliSeconden, double willekeurigheid = 0.3)
     {
@@ -38,191 +16,218 @@ public static class Willekeurig
     }
 }
 
-public class Attractie
+public static class Logger
 {
-    public string Naam { get; }
-    public AttractieStatus Status { get; private set; }
+    private static readonly object lockObject = new object();
 
-    public Attractie(string naam)
+    public static async Task Open(string text)
     {
-        Naam = naam;
-        Status = AttractieStatus.Werkt;
-    }
-
-    public int AantalWachtenden()
-    {
-        // Simuleer ingewikkelde AI-logica
-        Willekeurig.Pauzeer(1000).Wait();
-        return Willekeurig.Random.Next(31);
-    }
-
-    private async Task VerzendHerstartCommando()
-    {
-        var delayTask = Willekeurig.Pauzeer(1000);
-        var timeoutTask = Task.Delay(1200);
-        var completedTask = await Task.WhenAny(delayTask, timeoutTask);
-
-        if (completedTask == timeoutTask)
+        await Task.Delay(100); // Simulate file opening
+        lock (lockObject)
         {
-            throw new Exception("VerzendHerstartCommando heeft een time-out bereikt.");
+            using (StreamWriter writer = File.AppendText("log.txt"))
+            {
+                writer.WriteLine(text);
+            }
         }
     }
 
-    public async Task Herstart()
+    public static async Task Write(string text)
     {
-        Status = AttractieStatus.Opstarten;
-        await Logger.Write($"Attractie {Naam} aan het opstarten...");
-
-        try
+        await Task.Delay(100); // Simulate writing to log
+        lock (lockObject)
         {
-            await VerzendHerstartCommando();
-            Status = AttractieStatus.Werkt;
-            await Logger.Write($"Attractie {Naam} is opgestart.");
-        }
-        catch (Exception ex)
-        {
-            Status = AttractieStatus.Kapot;
-            await Logger.Write($"Attractie {Naam} is kapot: {ex.Message}");
+            using (StreamWriter writer = File.AppendText("log.txt"))
+            {
+                writer.WriteLine(text);
+            }
         }
     }
 }
+public enum AttractieStatus
+{
+    Werkt,
+    Kapot,
+    Opstarten
+}
 
+public class Attractie
+{
+    public string Naam { get; set; }
+    public AttractieStatus Status { get; private set; }
+    public Attractie(string Naam, AttractieStatus status)
+    {
+        this.Naam = Naam;
+        this.Status = status;
+    }
+    public async Task<int> AantalWachtenden()
+    {
+        await Willekeurig.Pauzeer(1000); // hier wordt zogenaamd ingewikkelde AI gedaan om het aantal wachtende te bepalen mbv een camera en face recognition
+        return Willekeurig.Random.Next(0, 30);
+    }
+    private async Task VerzendHerstartCommando()
+    {
+        await Willekeurig.Pauzeer(1000); // verzend een commando naar een stukje hardware
+        if (Willekeurig.Random.NextDouble() > .9) // soms gaat er iets fout
+            throw new Exception("Error bij opstarten");
+    }
+    public async Task Herstart()
+    {
+        Status = AttractieStatus.Opstarten;
+        await Logger.Write("Opstarten " + Naam);
+        try
+        {
+            await VerzendHerstartCommando();
+        }
+        catch
+        {
+            Status = AttractieStatus.Kapot;
+            return;
+        }
+        Status = AttractieStatus.Werkt;
+        await Logger.Write("Opstarten " + Naam);
+    }
+}
 public class Monteur
 {
-    public List<Attractie> BeheerdeAttracties { get; } = new List<Attractie>();
+    private readonly object lockObject = new object();
+
+    public List<Attractie> Beheert { get; set; } = new List<Attractie>();
 
     public void Beheer(Attractie attractie)
     {
-        lock (BeheerdeAttracties)
+        lock (lockObject)
         {
-            if (BeheerdeAttracties.Count >= 5)
+            if (Beheert.Count >= 5)
             {
-                throw new Exception("Een monteur kan maximaal vijf attracties beheren.");
+                throw new Exception("Een monteur kan niet meer dan vijf attracties beheren.");
             }
-            BeheerdeAttracties.Add(attractie);
+            Beheert.Add(attractie);
+        }
+    }
+
+    public IReadOnlyList<Attractie> InBeheer()
+    {
+        lock (lockObject)
+        {
+            return Beheert.ToList().AsReadOnly();
         }
     }
 }
 
 public class MonteurContext
 {
-    private static List<Monteur> Monteurs { get; } = new List<Monteur>();
-
-    public static int AantalMonteurs()
+    private static List<Monteur> monteurs = new List<Monteur>();
+    public static async Task<int> AantalMonteurs()
     {
-        // Simuleer database-operaties
-        Thread.Sleep(100);
-        return Monteurs.Count;
+        await Task.Delay(100); // haalt zogenaamd op uit de database
+        return monteurs.Count;
     }
-
-    public static Monteur GetMonteur(int index)
+    public static async Task<Monteur> GetMonteur(int index)
     {
-        // Simuleer database-operaties
-        Thread.Sleep(100);
-        if (index >= 0 && index < Monteurs.Count)
-        {
-            return Monteurs[index];
-        }
-        return null;
+        await Task.Delay(100); // haalt zogenaamd op uit de database
+        return monteurs[index];
     }
-
-    public static void VoegMonteurToe(Monteur monteur)
+    public static async Task VoegMonteurToe(Monteur monteur)
     {
-        // Simuleer database-operaties
-        Thread.Sleep(100);
-        Monteurs.Add(monteur);
+        await Task.Delay(100); // schrijf zogenaamd weg in de database
+        monteurs.Add(monteur);
     }
 }
 
-public class AdminPaneel
+public static class AdminPaneel
 {
     private static List<Attractie> attracties = new List<Attractie>
     {
-        new Attractie("Draaimolen"),
-        new Attractie("Reuzenrad"),
-        new Attractie("Achtbaan"),
-        new Attractie("Achtbaan 2"),
-        new Attractie("Spin"),
-        new Attractie("Schommel")
+        new Attractie("Draaimolen", AttractieStatus.Werkt),
+        new Attractie("Reuzenrad", AttractieStatus.Werkt),
+        new Attractie("Achtbaan", AttractieStatus.Kapot),
+        new Attractie("Achtbaan 2", AttractieStatus.Werkt),
+        new Attractie("Spin", AttractieStatus.Werkt),
+        new Attractie("Schommel", AttractieStatus.Opstarten),
     };
 
-    public static async Task GemiddeldeWachtenden()
+    public static async Task<double> GemiddeldeWachtenden()
     {
-        Console.WriteLine("[ ] Gemiddeld aantal wachtenden: berekening bezig");
-
-        // Simuleer AI-berekeningen
-        await Task.Delay(2000);
-
-        var gemiddeldAantal = attracties.Select(attractie => attractie.AantalWachtenden()).Average();
-        Console.WriteLine($"[ ] Gemiddeld aantal wachtenden: {gemiddeldAantal:F2}");
+        int totaal = 0;
+        List<Task<int>> taken = new List<Task<int>>();
+        for (int i = 0; i < await MonteurContext.AantalMonteurs(); i++)
+            foreach (Attractie g in (await MonteurContext.GetMonteur(i)).Beheert)
+                taken.Add(Task.Run(async () => await g.AantalWachtenden()));
+        foreach (var t in taken)
+            totaal += await t;
+        if (taken.Count == 0)
+        {
+            return 0;
+        }
+        return totaal / taken.Count;
     }
 
-    public static async Task Main()
+    public static async Task Main(string[] args)
     {
-        await Logger.Open();
-
+        var selectedOption = 0;
         Console.WriteLine("Dit is het adminpaneel!");
 
-        int selectedIndex = 0;
-        bool menuOpen = true;
-
-        while (menuOpen)
+        while (true)
         {
             Console.Clear();
-
-            Console.WriteLine("[ ] Gemiddeld aantal wachtenden: onbekend");
-
+            Console.SetCursorPosition(0, 0);
+            Console.WriteLine($"Gemiddeld aantal wachtenden: {await GemiddeldeWachtenden()}");
             for (int i = 0; i < attracties.Count; i++)
             {
-                var isSelected = i == selectedIndex;
-                var statusText = attracties[i].Status == AttractieStatus.Werkt ? "(werkt)" :
-                                 attracties[i].Status == AttractieStatus.Kapot ? "(kapot)" :
-                                 "(opstarten)";
-                var selectionIndicator = isSelected ? "[X]" : "[ ]";
+                var attractie = attracties[i];
+                var isSelected = i == selectedOption;
+                var statusText = attractie.Status switch
+                {
+                    AttractieStatus.Werkt => "(werkt)",
+                    AttractieStatus.Kapot => "(kapot)",
+                    AttractieStatus.Opstarten => "(opstarten)",
+                    _ => "",
+                };
 
-                Console.WriteLine($"{selectionIndicator} ({i + 1}) {attracties[i].Naam} {statusText}");
+                var selectionMarker = isSelected ? "[X]" : "[ ]";
+                Console.WriteLine($"{selectionMarker} ({i + 1}) {attractie.Naam} {statusText}");
             }
 
-            for (int i = 0; i < MonteurContext.AantalMonteurs(); i++)
+            for (int i = 0; i < MonteurContext.AantalMonteurs().Result; i++)
             {
                 var monteur = MonteurContext.GetMonteur(i);
-                var attractiesInBeheer = string.Join(", ", monteur.BeheerdeAttracties.Select(a => a.Naam));
-                Console.WriteLine($"{i + 1}) Monteur {i + 1}: {attractiesInBeheer}");
+                var beheerdeAttracties = string.Join(", ", monteur.Result.Beheert.Select(a => a.Naam));
+                Console.WriteLine($"[ ] Monteur {i + 1}: {beheerdeAttracties}");
             }
 
-            var key = Console.ReadKey().Key;
+            Console.WriteLine("Gebruik de pijltjes toetsen om te navigeren in het menu");
+            Console.WriteLine("Als een attractie geselecteerd is, toets enter als je die wilt herstarten");
+            Console.WriteLine("Als een monteur geselecteerd is, toets een cijfer van 1 t/m 6 om een attractie in het beheer van een monteur te zetten");
+            Console.WriteLine("Als het gemiddeld aantal wachtenden selecteerd is, toets enter om te (her)berekenen");
 
-            switch (key)
+            var key = Console.ReadKey();
+            if (key.Key == ConsoleKey.UpArrow)
             {
-                case ConsoleKey.UpArrow:
-                    selectedIndex = Math.Max(0, selectedIndex - 1);
-                    break;
-                case ConsoleKey.DownArrow:
-                    selectedIndex = Math.Min(attracties.Count - 1, selectedIndex + 1);
-                    break;
-                case ConsoleKey.Enter:
-                    if (selectedIndex == 0)
-                    {
-                        await GemiddeldeWachtenden();
-                    }
-                    else if (selectedIndex <= attracties.Count)
-                    {
-                        var selectedAttractie = attracties[selectedIndex - 1];
-                        await selectedAttractie.Herstart();
-                    }
-                    break;
-                default:
-                    if (char.IsDigit((char)key) && Convert.ToChar(key) != '0')
-                    {
-                        int monteurIndex = int.Parse(key.ToString()) - 1;
-                        if (monteurIndex < MonteurContext.AantalMonteurs())
-                        {
-                            var selectedMonteur = MonteurContext.GetMonteur(monteurIndex);
-                            selectedMonteur.Beheer(attracties[selectedIndex - 1]);
-                        }
-                    }
-                    break;
+                if (selectedOption > 0)
+                    selectedOption--;
+            }
+            else if (key.Key == ConsoleKey.DownArrow)
+            {
+                if (selectedOption < attracties.Count - 1)
+                    selectedOption++;
+            }
+            else if (key.Key == ConsoleKey.Enter)
+            {
+                var selectedAttractie = attracties[selectedOption];
+
+                if (selectedAttractie.Status == AttractieStatus.Kapot)
+                {
+                    // Herstart de geselecteerde attractie
+                    await selectedAttractie.Herstart();
+                }
+                else
+                {
+                    Console.WriteLine("Deze actie is alleen beschikbaar voor attracties met status 'Kapot'. Druk op een willekeurige toets om verder te gaan.");
+                    Console.ReadKey();
+                }
             }
         }
     }
+
 }
