@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -134,6 +135,17 @@ public class MonteurContext
         monteurs.Add(monteur);
     }
 }
+public class Optie
+{
+    public string Title { get; set; }
+    public Action Actie { get; set; }
+
+    public Optie(string title, Action actie)
+    {
+        Title = title;
+        Actie = actie;
+    }
+}
 
 public static class AdminPaneel
 {
@@ -166,12 +178,21 @@ public static class AdminPaneel
     public static async Task Main(string[] args)
     {
         var selectedOption = 0;
+        string wachtenden = "Blijheid nog niet uitgerekend";
         Console.WriteLine("Dit is het adminpaneel!");
+        List<Optie> opties = new List<Optie>()
+        {
+            new Optie("Nieuwe monteur", async () => await MonteurContext.VoegMonteurToe(new Monteur())),
+            new Optie("Update gemiddelde wachtenden", async () => {
+                wachtenden = "Gemiddelde wachtenden wordt uitgerekend";
+                wachtenden = "Het gemiddeld aantal wachtenden is " + await GemiddeldeWachtenden();
+            })
+        };
 
         while (true)
         {
-            Console.Clear();
             Console.SetCursorPosition(0, 0);
+            wachtenden = await GemiddeldeWachtenden() + " wachtenden";
             Console.WriteLine($"Gemiddeld aantal wachtenden: {await GemiddeldeWachtenden()}");
             for (int i = 0; i < attracties.Count; i++)
             {
@@ -187,6 +208,10 @@ public static class AdminPaneel
 
                 var selectionMarker = isSelected ? "[X]" : "[ ]";
                 Console.WriteLine($"{selectionMarker} ({i + 1}) {attractie.Naam} {statusText}");
+            }
+            for (int i = 0; i < opties.Count; i++)
+            {
+                Console.WriteLine(opties[i].Title);
             }
 
             for (int i = 0; i < MonteurContext.AantalMonteurs().Result; i++)
