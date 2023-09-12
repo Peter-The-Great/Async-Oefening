@@ -178,7 +178,7 @@ public static class AdminPaneel
     public static async Task Main(string[] args)
     {
         var selectedOption = 0;
-        string wachtenden = "Blijheid nog niet uitgerekend";
+        string wachtenden;
         Console.WriteLine("Dit is het adminpaneel!");
         List<Optie> opties = new List<Optie>()
         {
@@ -191,6 +191,7 @@ public static class AdminPaneel
 
         while (true)
         {
+            Console.Clear();
             Console.SetCursorPosition(0, 0);
             wachtenden = await GemiddeldeWachtenden() + " wachtenden";
             Console.WriteLine($"Gemiddeld aantal wachtenden: {await GemiddeldeWachtenden()}");
@@ -209,10 +210,7 @@ public static class AdminPaneel
                 var selectionMarker = isSelected ? "[X]" : "[ ]";
                 Console.WriteLine($"{selectionMarker} ({i + 1}) {attractie.Naam} {statusText}");
             }
-            for (int i = 0; i < opties.Count; i++)
-            {
-                Console.WriteLine(opties[i].Title);
-            }
+            
 
             for (int i = 0; i < MonteurContext.AantalMonteurs().Result; i++)
             {
