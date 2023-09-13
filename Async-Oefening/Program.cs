@@ -171,16 +171,17 @@ public static class AdminPaneel
     {
         Console.CursorVisible = false;
         var selectedOption = 0;
+        int selectedMonteurIndex = -1; // Houd de geselecteerde monteur bij
         string wachtenden;
         Console.WriteLine("Dit is het adminpaneel!");
         List<Optie> opties = new List<Optie>()
-        {
-            new Optie("Nieuwe monteur", async () => await MonteurContext.VoegMonteurToe(new Monteur())),
-            new Optie("Update gemiddelde wachtenden", async () => {
-                wachtenden = "Gemiddelde wachtenden wordt uitgerekend";
-                wachtenden = "Het gemiddeld aantal wachtenden is " + await GemiddeldeWachtenden();
-            })
-        };
+    {
+        new Optie("Nieuwe monteur", async () => await MonteurContext.VoegMonteurToe(new Monteur())),
+        new Optie("Update gemiddelde wachtenden", async () => {
+            wachtenden = "Gemiddelde wachtenden wordt uitgerekend";
+            wachtenden = "Het gemiddeld aantal wachtenden is " + await GemiddeldeWachtenden();
+        })
+    };
 
         while (true)
         {
@@ -188,6 +189,8 @@ public static class AdminPaneel
             Console.SetCursorPosition(0, 0);
             wachtenden = await GemiddeldeWachtenden() + " wachtenden";
             Console.WriteLine($"Gemiddeld aantal wachtenden: {await GemiddeldeWachtenden()}");
+
+            // Toon attracties met de geselecteerde optie
             for (int i = 0; i < attracties.Count; i++)
             {
                 var attractie = attracties[i];
@@ -204,12 +207,14 @@ public static class AdminPaneel
                 Console.WriteLine($"{selectionMarker} ({i + 1}) {attractie.Naam} {statusText}");
             }
 
-
+            // Toon monteurs
             for (int i = 0; i < MonteurContext.AantalMonteurs().Result; i++)
             {
                 var monteur = MonteurContext.GetMonteur(i).Result;
                 var attractiesInBeheer = monteur.Beheert.Select(a => a.Naam).ToList();
-                Console.WriteLine($"{i + 1}) Monteur {i + 1}: {string.Join(", ", attractiesInBeheer)}");
+                var isSelectedMonteur = i == selectedMonteurIndex;
+                var selectionMarkerMonteur = isSelectedMonteur ? "[X]" : "[ ]";
+                Console.WriteLine($"{selectionMarkerMonteur} Monteur {i + 1}: {string.Join(", ", attractiesInBeheer)}");
             }
 
             Console.WriteLine("Gebruik de pijltjes toetsen om te navigeren in het menu");
@@ -220,28 +225,58 @@ public static class AdminPaneel
             var key = Console.ReadKey();
             if (key.Key == ConsoleKey.UpArrow)
             {
-                if (selectedOption > 0)
+                if (selectedMonteurIndex >= 0)
+                {
+                    // Navigeer door de monteurs als er een monteur is geselecteerd
+                    if (selectedMonteurIndex > 0)
+                        selectedMonteurIndex--;
+                }
+                else if (selectedOption > 0)
                     selectedOption--;
             }
             else if (key.Key == ConsoleKey.DownArrow)
             {
-                if (selectedOption < attracties.Count - 1)
+                if (selectedMonteurIndex >= 0)
+                {
+                    // Navigeer door de monteurs als er een monteur is geselecteerd
+                    if (selectedMonteurIndex < MonteurContext.AantalMonteurs().Result - 1)
+                        selectedMonteurIndex++;
+                }
+                else if (selectedOption < attracties.Count - 1)
                     selectedOption++;
             }
             else if (key.Key == ConsoleKey.Enter)
             {
-                var selectedAttractie = attracties[selectedOption];
-
-                if (selectedAttractie.Status == AttractieStatus.Kapot)
+                if (selectedMonteurIndex >= 0)
                 {
-                    // Herstart de geselecteerde attractie
-                    await selectedAttractie.Herstart();
+                    // Voeg de geselecteerde attractie toe aan de geselecteerde monteur
+                    var selectedMonteur = MonteurContext.GetMonteur(selectedMonteurIndex).Result;
+                    if (selectedOption >= 0 && selectedOption < attracties.Count)
+                    {
+                        var selectedAttractie = attracties[selectedOption];
+                        selectedMonteur.Beheer(selectedAttractie);
+                    }
                 }
                 else
                 {
-                    Console.WriteLine("Deze actie is alleen beschikbaar voor attracties met status 'Kapot'. Druk op een willekeurige toets om verder te gaan.");
-                    Console.ReadKey();
+                    var selectedAttractie = attracties[selectedOption];
+
+                    if (selectedAttractie.Status == AttractieStatus.Kapot)
+                    {
+                        // Herstart de geselecteerde attractie
+                        await selectedAttractie.Herstart();
+                    }
+                    else
+                    {
+                        Console.WriteLine("Deze actie is alleen beschikbaar voor attracties met status 'Kapot'. Druk op een willekeurige toets om verder te gaan.");
+                        Console.ReadKey();
+                    }
                 }
+            }
+            else if (key.Key >= ConsoleKey.D1 && key.Key <= ConsoleKey.D6)
+            {
+                // Selecteer een monteur door een cijfer in te voeren (1 t/m 6)
+                selectedMonteurIndex = (int)key.Key - (int)ConsoleKey.D1;
             }
         }
     }
