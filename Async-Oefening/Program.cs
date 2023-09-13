@@ -1,12 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Reflection;
-using System.Threading;
-using System.Threading.Tasks;
-
-namespace Program;
+﻿namespace Logger;
 public static class Willekeurig
 {
     public static Random Random = new Random();
@@ -177,6 +169,7 @@ public static class AdminPaneel
 
     public static async Task Main(string[] args)
     {
+        Console.CursorVisible = false;
         var selectedOption = 0;
         string wachtenden;
         Console.WriteLine("Dit is het adminpaneel!");
@@ -210,13 +203,13 @@ public static class AdminPaneel
                 var selectionMarker = isSelected ? "[X]" : "[ ]";
                 Console.WriteLine($"{selectionMarker} ({i + 1}) {attractie.Naam} {statusText}");
             }
-            
+
 
             for (int i = 0; i < MonteurContext.AantalMonteurs().Result; i++)
             {
-                var monteur = MonteurContext.GetMonteur(i);
-                var beheerdeAttracties = string.Join(", ", monteur.Result.Beheert.Select(a => a.Naam));
-                Console.WriteLine($"[ ] Monteur {i + 1}: {beheerdeAttracties}");
+                var monteur = MonteurContext.GetMonteur(i).Result;
+                var attractiesInBeheer = monteur.Beheert.Select(a => a.Naam).ToList();
+                Console.WriteLine($"{i + 1}) Monteur {i + 1}: {string.Join(", ", attractiesInBeheer)}");
             }
 
             Console.WriteLine("Gebruik de pijltjes toetsen om te navigeren in het menu");
@@ -252,5 +245,4 @@ public static class AdminPaneel
             }
         }
     }
-
 }
